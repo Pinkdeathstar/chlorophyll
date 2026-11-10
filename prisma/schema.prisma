@@ -1,0 +1,228 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Category {
+  PFLANZEN
+  PFLANZTOEPFE
+  ZUBEHOER
+}
+
+enum ProductType {
+  SUKKULENTEN
+  MONSTERA
+  PHILODENDREN
+  TON
+  KAKTEEN
+  KUNSTSTOFF
+  ERDE
+  WERKZEUG
+}
+
+enum PaymentMethod {
+  UEBERWEISUNG
+  STRIPE
+}
+
+enum PaymentStatus {
+  IN_BEARBEITUNG
+  BEZAHLT
+  FEHLGESCHLAGEN
+  ERSTATTET
+}
+
+enum OrderStatus {
+  IN_BEARBEITUNG
+  VERSANDT
+  GELIEFERT
+  STORNIERT
+}
+
+model User {
+  id            String  @id
+  name          String
+  email         String
+  emailVerified Boolean @default(false)
+  image         String?
+
+  phone String?
+
+  role      Role      @default(USER)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  sessions  Session[]
+  accounts  Account[]
+  addresses Address[]
+  orders    Order[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Address {
+  id String @id @default(cuid())
+
+  firstName String
+  lastName  String
+
+  phone String?
+
+  street     String
+  city       String
+  postalCode String
+  country    String
+
+  isDefault Boolean @default(false)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  orders Order[]
+
+  @@map("address")
+}
+
+model Product {
+  id          String @id @default(cuid())
+  name        String
+  description String
+
+  price Decimal @db.Decimal(10, 2)
+  stock Int     @default(0)
+
+  category    Category
+  productType ProductType
+
+  images ProductImage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
+
+  @@map("product")
+}
+
+model ProductImage {
+  id String @id @default(cuid())
+
+  imageUrl  String
+  publicId  String
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("productImage")
+}
+
+model Order {
+  id Int @id @default(autoincrement())
+
+  orderNumber String @unique
+
+  stripeSessionId String? @unique
+
+  subtotal Decimal @db.Decimal(10, 2)
+  shipping Decimal @db.Decimal(10, 2)
+  tax      Decimal @db.Decimal(10, 2)
+  total    Decimal @db.Decimal(10, 2)
+
+  paymentMethod PaymentMethod
+  paymentStatus PaymentStatus @default(IN_BEARBEITUNG)
+
+  status OrderStatus @default(IN_BEARBEITUNG)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  addressId String
+  address   Address @relation(fields: [addressId], references: [id])
+
+  items OrderItem[]
+
+  @@map("order")
+}
+
+model OrderItem {
+  id String @id @default(cuid())
+
+  quantity Int
+  price    Decimal @db.Decimal(10, 2)
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@map("orderItem")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
