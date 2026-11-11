@@ -1,5 +1,4 @@
 "use client";
-
 import FrontendLayout from "@/components/layouts/FrontendLayout";
 import BreadCrumb from "@/components/ui/BreadCrumb";
 import Input from "@/components/ui/Input";
@@ -14,6 +13,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { getProfile } from "@/server-actions/user/getProfile";
 import { useCartStore } from "@/store/cart-store";
+import { placeOrder } from "@/server-actions/order/placeOrder";
+import { PaymentMethod } from "@/generated/prisma/enums";
+import toast from "react-hot-toast";
 
 interface CheckoutPageComponentProps {
   user: Awaited<ReturnType<typeof getProfile>>;
@@ -44,6 +46,8 @@ const checkoutSchema = z.object({
 
   country: z.string().min(2, "Pflichtfeld"),
 
+  postalCode: z.string().min(4, "Pflichtfeld"),
+
   city: z.string().min(2, "Pflichtfeld"),
 
   address: z.string().min(5, "Pflichtfeld"),
@@ -69,6 +73,7 @@ export default function CheckoutPageComponent({
       phone: user?.phone ?? "",
       country: address?.country ?? "",
       city: address?.city ?? "",
+      postalCode: address?.postalCode ?? "",
       address: address?.street ?? "",
     },
   });
@@ -78,10 +83,41 @@ export default function CheckoutPageComponent({
   >("überweisung");
 
   const onSubmit = async (data: CheckoutFormValues) => {
-    console.log({
-      ...data,
-      paymentMethod,
-    });
+    //überweisung
+    if (paymentMethod === "überweisung") {
+      const result = await placeOrder({
+        paymentMethod: PaymentMethod.UEBERWEISUNG,
+
+        shippingAddress: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone,
+          street: data.address,
+          postalCode: data.postalCode,
+          city: data.city,
+          country: data.country,
+        },
+
+        cartItems: cartItems.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+      });
+
+      if (!result.success) {
+        return toast.error(result.message as string);
+      }
+      toast.success(
+        "Bestellung wurde erfolgreich aufgegeben.",
+      );
+
+      clearCart();
+
+      router.push(`/account/orders/${result.orderNumber}`);
+
+      return;
+    }
+    //stripe
   };
 
   const shipping = 0;
@@ -304,12 +340,15 @@ export default function CheckoutPageComponent({
 
             <Button
               fullWidth
+              disabled={isSubmitting}
               className="mt-8"
               onClick={() => router.push("/kasse")}
             >
-              {paymentMethod === "überweisung"
-                ? "Zahlungspflichtig Bestellen"
-                : "Weiter zu Stripe"}
+              {isSubmitting
+                ? "In Bearbeitung..."
+                : paymentMethod === "stripe"
+                  ? "Mit Stripe fortfahren"
+                  : "Bestellen"}
             </Button>
 
             <Link

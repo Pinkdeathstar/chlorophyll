@@ -14,15 +14,15 @@ import { IoBagHandleOutline } from "react-icons/io5";
 export default function CartPage() {
   const router = useRouter();
   const {
-    totalPrice,
+    total,
     totalItems,
     cartItems,
     removeFromCart,
     increaseQuantity,
     decreaseQuantity,
   } = useCartStore();
-  const tax = totalPrice() * 0.19;
-  const subtotal = totalPrice() - tax;
+  const tax = total() * 0.19;
+  const subtotal = total() - tax;
   const shipping = 0;
 
   if (totalItems() === 0) {
@@ -172,7 +172,7 @@ export default function CartPage() {
               </div>
               <div className="flex justify-between border-t border-border pt-4 text-xl font-bold">
                 <span>Gesamtsumme</span>
-                <span>{totalPrice().toFixed(2)}€</span>
+                <span>{total().toFixed(2)}€</span>
               </div>
             </div>
 

@@ -1,5 +1,11 @@
-import { PaymentMethod } from "@/generated/prisma/enums";
+"use server";
+
+import {
+  PaymentMethod,
+  PaymentStatus,
+} from "@/generated/prisma/enums";
 import { getCurrentUser } from "../auth/getCurrentUser";
+import { createOrder } from "./createOrder";
 
 interface PlaceOrderInput {
   shippingAddress: {
@@ -37,6 +43,24 @@ export async function placeOrder(data: PlaceOrderInput) {
         message: "Dein Warenkorb ist leer.",
       };
     }
+
+    //create order
+    const order = await createOrder({
+      userId: currentUser.id,
+
+      paymentMethod: data.paymentMethod,
+      paymentStatus: PaymentStatus.IN_BEARBEITUNG,
+
+      shippingAddress: data.shippingAddress,
+
+      cartItems: data.cartItems,
+    });
+
+    return {
+      success: true,
+      orderNumber: order.orderNumber,
+      message: "Bestellung wurde erfolgreich aufgegeben.",
+    };
   } catch (error) {
     console.error(error);
 
